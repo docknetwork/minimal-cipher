@@ -1,5 +1,17 @@
 # minimal-cipher ChangeLog
 
+## 5.2.2 - 2026-11-25
+
+### Fixed
+- Depend on `base58-universal@^2` instead of `^1`. v1 pulls in the
+  `esm` loader, which crashes on Node 22+ (`Function.prototype.apply
+  was called on undefined`).
+
+### Changed
+- Publish as `@docknetwork/minimal-cipher` with a CommonJS build in
+  `dist/` (Babel), generated on `npm pack`/`npm publish`. Source in
+  `lib/` stays ESM.
+
 ## 5.2.0 - 2022-xx-xx
 
 ### Changed

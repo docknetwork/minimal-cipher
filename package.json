@@ -1,19 +1,26 @@
 {
-  "name": "@digitalbazaar/minimal-cipher",
-  "version": "5.1.1-0",
+  "name": "@docknetwork/minimal-cipher",
+  "version": "5.2.2",
   "description": "Minimal encryption/decryption JWE library.",
   "license": "BSD-3-Clause",
   "type": "module",
-  "exports": "./lib/index.js",
+  "main": "./dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./package.json": "./package.json"
+  },
   "browser": {
-    "./lib/algorithms/c20p.js": "./lib/algorithms/c20p-browser.js",
-    "./lib/algorithms/x25519-helper.js": "./lib/algorithms/x25519-helper-browser.js",
-    "./lib/crypto.js": "./lib/crypto-browser.js"
+    "./dist/algorithms/c20p.js": "./dist/algorithms/c20p-browser.js",
+    "./dist/algorithms/x25519-helper.js": "./dist/algorithms/x25519-helper-browser.js",
+    "./dist/crypto.js": "./dist/crypto-browser.js"
   },
   "files": [
-    "lib/**/*.js"
+    "dist/**/*.js",
+    "dist/package.json"
   ],
   "scripts": {
+    "build": "rm -rf dist && babel lib -d dist && echo \"{\\\"type\\\":\\\"commonjs\\\"}\" > dist/package.json",
+    "prepack": "npm run build",
     "test": "npm run test-node",
     "test-node": "cross-env NODE_ENV=test mocha -t 30000 -R ${REPORTER:-spec} --require test/node.js test/unit/index.js",
     "test-karma": "cd test && karma start karma.conf.cjs",
@@ -30,6 +37,9 @@
     "base64url-universal": "^2.0.0"
   },
   "devDependencies": {
+    "@babel/cli": "^7.24.0",
+    "@babel/core": "^7.24.0",
+    "@babel/preset-env": "^7.24.0",
     "@digitalbazaar/did-io": "^2.0.0",
     "@digitalbazaar/did-method-key": "^3.0.0",
     "@digitalbazaar/x25519-key-agreement-key-2020": "^3.0.0",
@@ -56,7 +66,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/digitalbazaar/minimal-cipher"
+    "url": "git+https://github.com/docknetwork/minimal-cipher.git"
   },
   "keywords": [
     "cipher",
