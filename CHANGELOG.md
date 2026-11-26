@@ -1,16 +1,49 @@
 # minimal-cipher ChangeLog
 
-## 5.2.2 - 2026-11-25
+## 6.0.0 - 2026-11-xx
 
-### Fixed
-- Depend on `base58-universal@^2` instead of `^1`. v1 pulls in the
-  `esm` loader, which crashes on Node 22+ (`Function.prototype.apply
-  was called on undefined`).
+Changes are relative to `@docknetwork/minimal-cipher@5.2.1` on npm, which was
+published from a commit that is not in this repository.
+
+### Added
+- `ECDH-1PU+A256KW` recipients, which authenticate the sender: pass the
+  sender's `keyAgreementKey` when encrypting and a `keyResolver` when
+  decrypting. This first shipped in the 5.2.1 package.
+- `senderAuthFormat: 'draft-04'` Cipher option to encrypt `ECDH-1PU+A256KW`
+  as specified by draft-madden-jose-ecdh-1pu-04: `Z = Ze || Zs`, the
+  authentication tag bound into each wrapped key, `A256CBC-HS512` content
+  encryption and the key agreement parameters in the protected header.
+  The default is still `legacy`, the 5.2.1 format, because 5.2.1 can not
+  decrypt `draft-04`. Decryption accepts both formats.
+- `allowLegacySenderAuth: false` Cipher option to refuse the legacy
+  `ECDH-1PU+A256KW` format when decrypting. With more than one recipient, the
+  legacy format lets a recipient replace the content of a message and have
+  the others accept it as coming from the sender.
+- `A256CBC-HS512` content encryption, used by the `draft-04` format.
+- `createEncryptStream` accepts `keyAgreementKey`, so streams can be
+  encrypted for `ECDH-1PU+A256KW` recipients.
+- When decrypting, `alg`, `epk`, `skid`, `apu` and `apv` are also read from
+  the protected and shared unprotected headers.
 
 ### Changed
-- Publish as `@docknetwork/minimal-cipher` with a CommonJS build in
-  `dist/` (Babel), generated on `npm pack`/`npm publish`. Source in
-  `lib/` stays ESM.
+- **BREAKING**: Require Node.js 20.19+ or 22.12+. The CommonJS build loads
+  the ESM-only `base58-universal` and `base64url-universal` with `require()`,
+  which older versions do not support.
+- Depend on `base58-universal@^2` and `base64url-universal@^2`. The 5.2.1
+  package depended on `^1` of both.
+- The CommonJS build in `dist/` is generated with Babel on
+  `npm pack`/`npm publish`. Source in `lib/` stays ESM.
+
+### Fixed
+- Crash when loading on Node.js 22+ (`Function.prototype.apply was called on
+  undefined`), caused by the `esm` loader that `base58-universal@1` pulls in.
+- `skid` is no longer added to `ECDH-ES+A256KW` recipients when a sender
+  `keyAgreementKey` is passed; it exposed the sender without authenticating
+  it.
+- `ECDH-1PU+A256KW` no longer needs `Buffer`, which is not available in
+  browsers.
+- The `browser` field maps the browser implementations for both `lib/` and
+  `dist/`.
 
 ## 5.2.0 - 2022-xx-xx
 

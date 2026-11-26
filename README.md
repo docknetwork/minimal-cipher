@@ -43,9 +43,10 @@ APIs, including Web KMS (TODO: citation needed).
 
 ## Install
 
-- Node.js 14+ required.
-- [Streams API][] required. Older browsers and Node.js <18 must use a polyfill.
-- [Web Crypto API][] required. Older browsers and Node.js 14 must use a polyfill.
+- Node.js 20.19+ or 22.12+ required. The package is published as CommonJS and
+  loads its ESM-only dependencies with `require()`.
+- [Streams API][] required. Older browsers must use a polyfill.
+- [Web Crypto API][] required. Older browsers must use a polyfill.
 
 To install locally (for development):
 
@@ -60,7 +61,7 @@ npm install
 Pick a Cipher interface (`recommended` or `fips`) and create an instance:
 
 ```js
-import {Cipher} from '@digitalbazaar/minimal-cipher';
+import {Cipher} from '@docknetwork/minimal-cipher';
 
 const cipher = new Cipher(); // by default {version: 'recommended'}
 ```
@@ -168,6 +169,53 @@ const data = await cipher.decrypt({jwe, keyAgreementKey});
 
 const object = await cipher.decryptObject({jwe, keyAgreementKey});
 ```
+
+### Sender authentication (ECDH-1PU)
+
+Recipients that use `ECDH-ES+A256KW` can not tell who encrypted a JWE. To
+authenticate the sender, use `ECDH-1PU+A256KW` recipients and pass the sender's
+private `keyAgreementKey` when encrypting. The recipient needs a `keyResolver`
+to resolve the sender's public key from the `skid` (sender key ID) header:
+
+```js
+const recipients = [{
+  header: {kid: recipientKey.id, alg: 'ECDH-1PU+A256KW'}
+}];
+const jwe = await cipher.encryptObject(
+  {obj, recipients, keyResolver, keyAgreementKey: senderKey});
+
+const object = await cipher.decryptObject(
+  {jwe, keyAgreementKey: recipientKey, keyResolver});
+```
+
+There are two wire formats for `ECDH-1PU+A256KW`, selected when creating the
+`Cipher`:
+
+```js
+const cipher = new Cipher({
+  // format to encrypt with: 'legacy' (default) or 'draft-04'
+  senderAuthFormat: 'draft-04',
+  // whether to decrypt the legacy format (default: true)
+  allowLegacySenderAuth: false
+});
+```
+
+* `legacy` is the format of version 5.2.1 and the default, so that existing
+  deployments keep understanding each other. It has two problems: when a JWE
+  has more than one recipient, any of them can replace its content and the
+  others will accept it as coming from the sender, and other ECDH-1PU
+  implementations can not read it.
+* `draft-04` follows
+  [draft-madden-jose-ecdh-1pu-04](https://datatracker.ietf.org/doc/html/draft-madden-jose-ecdh-1pu-04)
+  (key agreement with key wrapping), with the header layout used by DIDComm
+  v2. It always uses `A256CBC-HS512` content encryption, whatever the `Cipher`
+  version, and binds the content to each recipient's wrapped key. Versions
+  before 6.0.0 can not decrypt it.
+
+Decryption detects the format, so to migrate: first upgrade every party to
+6.0.0 or later, then switch senders to `senderAuthFormat: 'draft-04'`, and
+finally set `allowLegacySenderAuth: false` so that legacy JWEs are refused.
+In the `draft-04` format all recipients of a JWE must use `ECDH-1PU+A256KW`.
 
 TODO: Describe the required KEK API:
 // `id`, `algorithm`, `wrapKey({unwrappedKey})`, and `unwrapKey({wrappedKey})`

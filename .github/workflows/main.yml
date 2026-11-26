@@ -8,11 +8,11 @@ jobs:
     timeout-minutes: 10
     strategy:
       matrix:
-        node-version: [16.x]
+        node-version: [22.x]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
+      uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
     - run: npm install
@@ -24,27 +24,29 @@ jobs:
     timeout-minutes: 10
     strategy:
       matrix:
-        node-version: [14.x, 16.x, 18.x]
+        node-version: [20.x, 22.x, 24.x]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
+      uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
     - run: npm install
     - name: Run test with Node.js ${{ matrix.node-version }}
       run: npm run test-node
+    - name: Build and load the CommonJS build
+      run: npm run test-dist
   test-karma:
     needs: [lint]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
       matrix:
-        node-version: [16.x]
+        node-version: [22.x]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
+      uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
     - run: npm install
@@ -56,11 +58,11 @@ jobs:
     timeout-minutes: 10
     strategy:
       matrix:
-        node-version: [16.x]
+        node-version: [22.x]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
+      uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
     - run: npm install
