@@ -1,6 +1,6 @@
 module.exports = function(config) {
   const browsers = ['ChromeHeadless'];
-  const files = ['unit/index.js'];
+  const files = ['unit/index.js', 'unit/senderAuth.js'];
   const frameworks = ['mocha'];
   const preprocessors = ['webpack', 'sourcemap'];
   const reporters = ['mocha'];

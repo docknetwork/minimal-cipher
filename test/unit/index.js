@@ -74,6 +74,8 @@ describe('minimal-cipher', function() {
        *   encrypted stream.
        * @param {Array<object>} [options.recipients=recipient] - A list of JWE
        *   JOSE recipients.
+       * @param {KaK} [options.keyAgreementKey] - The sender's KaK, for
+       *   recipients that use sender authentication.
        *
        * @returns {Promise<Array>} The resulting encrypted chunks.
        */
@@ -81,11 +83,12 @@ describe('minimal-cipher', function() {
         data,
         queueSize = 5,
         chunkSize = 5,
-        recipients = recipient
+        recipients = recipient,
+        keyAgreementKey
       }) {
         const unencryptedStream = createUnencryptedStream({data, queueSize});
         const encryptStream = await cipher.createEncryptStream(
-          {recipients, keyResolver, chunkSize});
+          {recipients, keyResolver, chunkSize, keyAgreementKey});
         const readable = unencryptedStream.pipeThrough(encryptStream);
         const reader = readable.getReader();
         const chunks = [];
@@ -121,7 +124,7 @@ describe('minimal-cipher', function() {
           }
         });
         const decryptStream = await cipher.createDecryptStream(
-          {keyAgreementKey});
+          {keyAgreementKey, keyResolver});
         const readable = stream.pipeThrough(decryptStream);
         const reader = readable.getReader();
         let data = new Uint8Array(0);
@@ -490,6 +493,100 @@ describe('minimal-cipher', function() {
           // decrypt using key2
           const decryptResult2 = await cipher.decryptObject({
             jwe: result, keyAgreementKey: key2
+          });
+          decryptResult2.should.eql(obj);
+        });
+
+      it('should decrypt a simple object with sender key auth',
+        async function() {
+          const recipients = [testKaK.recipientSenderAuth];
+          const obj = {simple: true};
+          const jwe = await cipher.encryptObject(
+            {obj, recipients, keyResolver, keyAgreementKey: testKaK});
+          jwe.should.be.a.JWE;
+          jwe.recipients.length.should.equal(1);
+          isRecipient({recipients: jwe.recipients, kak: testKaK});
+          const result = await cipher.decryptObject(
+            {keyResolver, jwe, keyAgreementKey: testKaK});
+          result.should.eql(obj);
+        });
+
+      it('should encrypt and decrypt a stream with sender key auth',
+        async function() {
+          const data = getRandomUint8();
+          const senderKaK = new KaK({id: 'urn:sender'});
+          const recipients = [testKaK.recipientSenderAuth];
+          const chunks = await encryptStream(
+            {data, recipients, keyAgreementKey: senderKaK});
+          chunks.length.should.be.gte(1);
+          for(const chunk of chunks) {
+            chunk.jwe.should.be.a.JWE;
+            chunk.jwe.recipients[0].header.skid.should.equal(senderKaK.id);
+          }
+          const result = await decryptStream({chunks});
+          result.should.deep.eql(data);
+        });
+
+      it('should only add "skid" to sender key auth recipients',
+        async function() {
+          const senderKaK = new KaK({id: 'urn:sender'});
+          const secondKaK = new KaK({id: 'urn:recipient2'});
+          const recipients = [
+            testKaK.recipient, secondKaK.recipientSenderAuth
+          ];
+          const obj = {simple: true};
+          const jwe = await cipher.encryptObject(
+            {obj, recipients, keyResolver, keyAgreementKey: senderKaK});
+          const [esRecipient, senderAuthRecipient] = jwe.recipients;
+          should.not.exist(esRecipient.header.skid);
+          senderAuthRecipient.header.skid.should.equal(senderKaK.id);
+
+          const result1 = await cipher.decryptObject(
+            {jwe, keyAgreementKey: testKaK});
+          result1.should.eql(obj);
+          const result2 = await cipher.decryptObject(
+            {jwe, keyAgreementKey: secondKaK, keyResolver});
+          result2.should.eql(obj);
+        });
+
+      it('should fail to encrypt with sender key auth without a sender key',
+        async function() {
+          const recipients = [testKaK.recipientSenderAuth];
+          let error;
+          try {
+            await cipher.encryptObject(
+              {obj: {simple: true}, recipients, keyResolver});
+          } catch(e) {
+            error = e;
+          }
+          should.exist(error);
+          error.message.should.contain('requires keyAgreementKey');
+        });
+
+      it('should encrypt and decrypt an object using didKeyResolver ECDH-1PU',
+        async function() {
+          const key1 = new X25519KeyAgreementKey2020({...key1Data});
+          const key2 = new X25519KeyAgreementKey2020({...key2Data});
+          const recipients = [
+            {header: {kid: key1.id, alg: 'ECDH-1PU+A256KW'}},
+            {header: {kid: key2.id, alg: 'ECDH-1PU+A256KW'}}
+          ];
+          const keyResolver2 = createKeyResolver();
+          const obj = {simple: true};
+          const result = await cipher.encryptObject({
+            obj, recipients, keyResolver: keyResolver2, keyAgreementKey: key1
+          });
+          result.should.be.a.JWE;
+
+          // decrypt using key1
+          const decryptResult1 = await cipher.decryptObject({
+            jwe: result, keyAgreementKey: key1, keyResolver: keyResolver2
+          });
+          decryptResult1.should.eql(obj);
+
+          // decrypt using key2
+          const decryptResult2 = await cipher.decryptObject({
+            jwe: result, keyAgreementKey: key2, keyResolver: keyResolver2
           });
           decryptResult2.should.eql(obj);
         });
